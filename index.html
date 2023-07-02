@@ -1,1 +1,22 @@
-hello world
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script src="script.js"></script>
+    <title>Estoque inteligente </title>
+</head>
+<body>
+    <h1>Controle de Produtos</h1>
+
+  <button onclick="cadastrarProduto()">Cadastrar</button>
+  <button onclick="listarProdutos()">Listar Produtos</button>
+  <button onclick="removerProduto()">Remover Produto</button>
+
+  <div id="popup" style="display: none;">
+    <h2>Produtos Cadastrados</h2>
+    <p id="produtos"></p>
+  </div>
+</body>
+</html>
