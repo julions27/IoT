@@ -1,7 +1,8 @@
 #include <WiFi.h>
-#include <ESPAsyncWebSrv.h>
+#include <ESPAsyncWebServer.h>
 #include <SPI.h>
 #include <MFRC522.h>
+#include <SPIFFS.h> // Adicionada a inclusão da biblioteca SPIFFS.h
 
 #define SS_PIN 5    // Pino SS do módulo RFID
 #define RST_PIN 22  // Pino RST do módulo RFID
@@ -29,6 +30,13 @@ void setup() {
   SPI.begin();
   rfid.PCD_Init();
 
+  // Inicializa o sistema de arquivos SPIFFS
+  if (!SPIFFS.begin()) {
+    Serial.println("Erro ao montar o sistema de arquivos SPIFFS");
+    return;
+  }
+  Serial.println("Sistema de arquivos SPIFFS montado com sucesso");
+
   // Rotas do servidor web
   server.on("/cadastrar", HTTP_POST, [](AsyncWebServerRequest *request){
     if (request->hasParam("produto", true) && request->hasParam("quantidade", true)) {
@@ -36,9 +44,15 @@ void setup() {
       String quantidade = request->getParam("quantidade", true)->value();
 
       // Realize as operações necessárias para associar o cartão RFID ao produto e quantidade
-      // Salve as informações em um arquivo chamado "cartao.txt"
-
-      request->send(200, "text/plain", "success");
+      // Salve as informações no arquivo "cartao.txt"
+      File file = SPIFFS.open("/cartao.txt", "a");
+      if (file) {
+        file.println(produto + "," + quantidade);
+        file.close();
+        request->send(200, "text/plain", "success");
+      } else {
+        request->send(500, "text/plain", "Erro ao abrir o arquivo");
+      }
     } else {
       request->send(400, "text/plain", "Parâmetros inválidos");
     }
@@ -46,16 +60,57 @@ void setup() {
 
   server.on("/listar-produtos", HTTP_GET, [](AsyncWebServerRequest *request){
     // Leia o arquivo "cartao.txt" e envie os dados como resposta
-    // Certifique-se de definir o cabeçalho "Content-Type" como "text/plain"
-
-    request->send(200, "text/plain", "Dados dos produtos");
+    File file = SPIFFS.open("/cartao.txt", "r");
+    if (file) {
+      String dados;
+      while (file.available()) {
+        dados += char(file.read());
+      }
+      file.close();
+      request->send(200, "text/plain", dados);
+    } else {
+      request->send(500, "text/plain", "Erro ao abrir o arquivo");
+    }
   });
 
   server.on("/remover-produto", HTTP_DELETE, [](AsyncWebServerRequest *request){
-    // Realize as operações necessárias para remover o produto associado ao cartão RFID lido
-    // Verifique se o cartão está cadastrado no arquivo "cartao.txt" e remova-o
+    if (request->hasParam("tag", true)) {
+      String tag = request->getParam("tag", true)->value();
 
-    request->send(200, "text/plain", "success");
+      // Realize as operações necessárias para remover o produto associado à tag do arquivo "cartao.txt"
+      File file = SPIFFS.open("/cartao.txt", "r");
+      if (file) {
+        String dados;
+        while (file.available()) {
+          dados += char(file.read());
+        }
+        file.close();
+        int posicaoInicioLinha = dados.indexOf(tag);
+        if (posicaoInicioLinha != -1) {
+          int posicaoFimLinha = dados.indexOf('\n', posicaoInicioLinha);
+          if (posicaoFimLinha == -1) {
+            posicaoFimLinha = dados.length();
+          }
+          String linhaRemovida = dados.substring(posicaoInicioLinha, posicaoFimLinha);
+          dados.replace(linhaRemovida, "");
+          dados.trim();
+          file = SPIFFS.open("/cartao.txt", "w");
+          if (file) {
+            file.print(dados);
+            file.close();
+            request->send(200, "text/plain", "success");
+          } else {
+            request->send(500, "text/plain", "Erro ao abrir o arquivo");
+          }
+        } else {
+          request->send(400, "text/plain", "Tag não encontrada");
+        }
+      } else {
+        request->send(500, "text/plain", "Erro ao abrir o arquivo");
+      }
+    } else {
+      request->send(400, "text/plain", "Parâmetros inválidos");
+    }
   });
 
   server.begin();
@@ -64,13 +119,14 @@ void setup() {
 void loop() {
   // Verifique a leitura de um cartão RFID
   if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
-    String cartao = "";
+    String tag = "";
     for (byte i = 0; i < rfid.uid.size; i++) {
-      cartao += String(rfid.uid.uidByte[i] < 0x10 ? "0" : "");
-      cartao += String(rfid.uid.uidByte[i], HEX);
+      tag += String(rfid.uid.uidByte[i] < 0x10 ? "0" : "");
+      tag += String(rfid.uid.uidByte[i], HEX);
     }
 
-    // Realize as operações necessárias com o cartão lido (por exemplo, remover produto)
+    // Realize as operações necessárias com a tag lida (por exemplo, remover produto)
+    // Você pode usar a rota "/remover-produto" para remover o produto associado à tag
 
     rfid.PICC_HaltA();
     rfid.PCD_StopCrypto1();
