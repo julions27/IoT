@@ -7,7 +7,7 @@ function cadastrarProduto() {
       quantidade: quantidade
     };
   
-    fetch("http://endereco-do-seu-esp32/cadastrar", {
+    fetch("http://192.168.235.1/cadastrar", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -30,7 +30,7 @@ function cadastrarProduto() {
   }
   
   function listarProdutos() {
-    fetch("http://endereco-do-seu-esp32/listar-produtos")
+    fetch("http://192.168.235.1/listar-produtos")
     .then(response => response.text())
     .then(data => {
       document.getElementById("produtos").innerText = data;
@@ -42,7 +42,7 @@ function cadastrarProduto() {
   }
   
   function removerProduto() {
-    fetch("http://endereco-do-seu-esp32/remover-produto", {
+    fetch("http://192.168.235.1/remover-produto", {
       method: "DELETE"
     })
     .then(response => response.text())
