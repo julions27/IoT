@@ -7,7 +7,7 @@ function cadastrarProduto() {
   if (produto && quantidade) {
     let novoProduto = {
       produto: produto,
-      quantidade: quantidade
+      quantidade: parseInt(quantidade) // Converte a quantidade para um número inteiro
     };
 
     data.push(novoProduto);
@@ -40,13 +40,19 @@ function removerProduto() {
   let produto = prompt("Digite o nome do produto a ser removido:");
 
   let produtoEncontrado = false;
-  data = data.filter(item => {
+  data = data.map(item => {
     if (item.produto === produto) {
-      produtoEncontrado = true;
-      return false; // Remove o produto do array
+      if (item.quantidade === 0) {
+        produtoEncontrado = true;
+        return null; // Remove o produto do array
+      } else {
+        item.quantidade -= 1; // Remove uma unidade do produto
+      }
     }
-    return true; // Mantém o produto no array
+    return item; // Mantém o produto no array
   });
+
+  data = data.filter(item => item !== null); // Filtra e remove os produtos nulos do array
 
   if (produtoEncontrado) {
     alert("Produto removido com sucesso");
