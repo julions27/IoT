@@ -39,25 +39,36 @@ void setup() {
 
   // Rotas do servidor web
   server.on("/cadastrar", HTTP_POST, [](AsyncWebServerRequest *request){
-    if (request->hasParam("produto", true) && request->hasParam("quantidade", true)) {
-      String produto = request->getParam("produto", true)->value();
-      String quantidade = request->getParam("quantidade", true)->value();
+  if (request->hasParam("produto", true) && request->hasParam("quantidade", true)) {
+    String produto = request->getParam("produto", true)->value();
+    String quantidade = request->getParam("quantidade", true)->value();
+
+    // Verifica a leitura de um cartão RFID
+    if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+      String tag = "";
+      for (byte i = 0; i < rfid.uid.size; i++) {
+        tag += String(rfid.uid.uidByte[i] < 0x10 ? "0" : "");
+        tag += String(rfid.uid.uidByte[i], HEX);
+      }
 
       // Realize as operações necessárias para associar o cartão RFID ao produto e quantidade
       // Salve as informações no arquivo "cartao.txt"
       File file = SPIFFS.open("/cartao.txt", "a");
       if (file) {
-        file.println(produto + "," + quantidade);
+        file.println(tag + "," + produto + "," + quantidade);
         file.close();
         request->send(200, "text/plain", "success");
       } else {
         request->send(500, "text/plain", "Erro ao abrir o arquivo");
       }
     } else {
-      request->send(400, "text/plain", "Parâmetros inválidos");
+      request->send(400, "text/plain", "Nenhum cartão RFID detectado");
     }
-  });
-
+  } else {
+    request->send(400, "text/plain", "Parâmetros inválidos");
+  }
+});
+  
   server.on("/listar-produtos", HTTP_GET, [](AsyncWebServerRequest *request){
     // Leia o arquivo "cartao.txt" e envie os dados como resposta
     File file = SPIFFS.open("/cartao.txt", "r");
@@ -117,18 +128,5 @@ void setup() {
 }
 
 void loop() {
-  // Verifique a leitura de um cartão RFID
-  if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
-    String tag = "";
-    for (byte i = 0; i < rfid.uid.size; i++) {
-      tag += String(rfid.uid.uidByte[i] < 0x10 ? "0" : "");
-      tag += String(rfid.uid.uidByte[i], HEX);
-    }
 
-    // Realize as operações necessárias com a tag lida (por exemplo, remover produto)
-    // Você pode usar a rota "/remover-produto" para remover o produto associado à tag
-
-    rfid.PICC_HaltA();
-    rfid.PCD_StopCrypto1();
-  }
 }
