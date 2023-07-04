@@ -1,62 +1,81 @@
-let data = [];
+#include <WiFi.h>
+#include <ESPAsyncWebSrv.h>
+#include <SPI.h>
+#include <MFRC522.h>
 
-function cadastrarProduto() {
-  let produto = prompt("Digite o nome do produto:");
-  let quantidade = prompt("Digite a quantidade:");
+#define SS_PIN 5    // Pino SS do módulo RFID
+#define RST_PIN 22  // Pino RST do módulo RFID
 
-  if (produto && quantidade) {
-    let novoProduto = {
-      produto: produto,
-      quantidade: parseInt(quantidade) // Converte a quantidade para um número inteiro
-    };
+MFRC522 rfid(SS_PIN, RST_PIN);   // Objeto RFID
 
-    data.push(novoProduto);
+const char* ssid = "Rede";
+const char* password = "vaisaber";
+const char* serverIP = "192.168.235.1";
 
-    setTimeout(executarDepoisDe3Segundos, 3000);
-  } else {
-    alert("Nome do produto e quantidade são obrigatórios!");
+AsyncWebServer server(80);
+
+void setup() {
+  Serial.begin(115200);
+
+  // Inicializa a conexão WiFi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
   }
-}
+  Serial.println("Connected to WiFi");
 
-function executarDepoisDe3Segundos() {
-  alert("Produto cadastrado com sucesso");
-}
+  // Inicializa o módulo RFID
+  SPI.begin();
+  rfid.PCD_Init();
 
-function listarProdutos() {
-  let mensagem = "Lista de Produtos:\n";
+  // Rotas do servidor web
+  server.on("/cadastrar", HTTP_POST, [](AsyncWebServerRequest *request){
+    if (request->hasParam("produto", true) && request->hasParam("quantidade", true)) {
+      String produto = request->getParam("produto", true)->value();
+      String quantidade = request->getParam("quantidade", true)->value();
 
-  if (data.length === 0) {
-    mensagem = "Nenhum produto cadastrado.";
-  } else {
-    data.forEach((produto, index) => {
-      mensagem += `Produto ${index + 1}: ${produto.produto} - Quantidade: ${produto.quantidade}\n`;
-    });
-  }
+      // Verifica a leitura de um cartão RFID
+      if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+        String tag = "";
+        for (byte i = 0; i < rfid.uid.size; i++) {
+          tag += String(rfid.uid.uidByte[i] < 0x10 ? "0" : "");
+          tag += String(rfid.uid.uidByte[i], HEX);
+        }
 
-  alert(mensagem);
-}
-
-function removerProduto() {
-  let produto = prompt("Digite o nome do produto a ser removido:");
-
-  let produtoEncontrado = false;
-  data = data.map(item => {
-    if (item.produto === produto) {
-      if (item.quantidade === 0) {
-        produtoEncontrado = true;
-        return null; // Remove o produto do array
+        // Realize as operações necessárias para associar o cartão RFID ao produto e quantidade
+        // Salve as informações no arquivo "cartao.txt"
+        File file = SPIFFS.open("/cartao.txt", "a");
+        if (file) {
+          file.println(tag + "," + produto + "," + quantidade);
+          file.close();
+          request->send(200, "text/plain", "success");
+        } else {
+          request->send(500, "text/plain", "Erro ao abrir o arquivo");
+        }
       } else {
-        item.quantidade -= 1; // Remove uma unidade do produto
+        request->send(400, "text/plain", "Nenhum cartão RFID detectado");
       }
+    } else {
+      request->send(400, "text/plain", "Parâmetros inválidos");
     }
-    return item; // Mantém o produto no array
   });
 
-  data = data.filter(item => item !== null); // Filtra e remove os produtos nulos do array
+  server.on("/listar-produtos", HTTP_GET, [](AsyncWebServerRequest *request){
+    // Leia o arquivo "cartao.txt" e envie os dados como resposta
+    // Certifique-se de definir o cabeçalho "Content-Type" como "text/plain"
 
-  if (produtoEncontrado) {
-    alert("Produto removido com sucesso");
-  } else {
-    alert("Produto não encontrado");
-  }
+    request->send(200, "text/plain", "Dados dos produtos");
+  });
+
+  server.on("/remover-produto", HTTP_DELETE, [](AsyncWebServerRequest *request){
+    // Realize as operações necessárias para remover o produto associado ao cartão RFID lido
+    // Verifique se o cartão está cadastrado no arquivo "cartao.txt" e remova-o
+
+    request->send(200, "text/plain", "success");
+  });
+
+  server.begin();
 }
+
+void loop
