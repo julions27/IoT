@@ -1,6 +1,6 @@
 let data = {};
 
-function cadastrarProduto2() {
+function cadastrarProduto() {
   let produto = prompt("Digite o nome do produto:");
   let quantidade = prompt("Digite a quantidade:");
 
