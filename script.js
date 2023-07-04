@@ -1,62 +1,41 @@
-function cadastrarProduto() {
-    var produto = prompt("Digite o nome do produto:");
-    var quantidade = prompt("Digite a quantidade:");
-  
-    var data = {
+let data = {};
+
+function cadastrarProduto2() {
+  let produto = prompt("Digite o nome do produto:");
+  let quantidade = prompt("Digite a quantidade:");
+
+  if (produto && quantidade) {
+    data = {
       produto: produto,
       quantidade: quantidade
     };
-  
-    fetch("http://192.168.235.188/cadastrar", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(data)
-    })
-    .then(response => response.text())
-    .then(result => {
-      if (result === "success") {
-        alert("Cadastro realizado com sucesso!");
-      } else if (result === "existing_card") {
-        alert("Cartão já cadastrado!");
-      } else {
-        alert("Não foi possível realizar o cadastro.");
-      }
-    })
-    .catch(error => {
-      console.log(error);
-    });
+
+    setTimeout(executarDepoisDe3Segundos, 3000);
+  } else {
+    alert("Nome do produto e quantidade são obrigatórios!");
   }
-  
-  function listarProdutos() {
-    fetch("http://192.168.235.188/listar-produtos")
-    .then(response => response.text())
-    .then(data => {
-      document.getElementById("produtos").innerText = data;
-      document.getElementById("popup").style.display = "block";
-    })
-    .catch(error => {
-      console.log(error);
-    });
+}
+
+function executarDepoisDe3Segundos() {
+  alert("Produto cadastrado com sucesso");
+}
+
+function listarProdutos() {
+  let mensagem = "";
+  for (let prop in data) {
+    mensagem += prop + ": " + data[prop] + "\n";
   }
-  
-  function removerProduto() {
-    fetch("http://192.168.235.188/remover-produto", {
-      method: "DELETE"
-    })
-    .then(response => response.text())
-    .then(result => {
-      if (result === "success") {
-        alert("Produto removido com sucesso!");
-      } else if (result === "unknown_card") {
-        alert("Cartão não cadastrado!");
-      } else {
-        alert("Não foi possível remover o produto.");
-      }
-    })
-    .catch(error => {
-      console.log(error);
-    });
+  alert(mensagem);
+}
+
+function removerProduto() {
+  let produto = prompt("Digite o nome do produto a ser removido:");
+
+  if (data.produto === produto) {
+    delete data.produto;
+    delete data.quantidade;
+    alert("Produto removido com sucesso");
+  } else {
+    alert("Produto não encontrado");
   }
-  
+}
